@@ -1,6 +1,7 @@
 package br.com.tisoftware.tilocationclient;
 
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.location.Location;
 import android.location.LocationListener;
 import android.support.v4.app.ActivityCompat;
@@ -26,16 +27,24 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,LocationListener,GoogleMap.OnMarkerClickListener {
+import java.util.ArrayList;
+import java.util.List;
+
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     public static final String URL="http://tilocationmobile.atspace.cc/location.php";
     private JSONArray pontos;
+    public List<LatLng> points = new ArrayList<>();
+
+    private List<Polyline> polylinePaths = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +83,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             public void onResponse(String response) {
                 Log.d("JSONResult" , response.toString());
                 JSONObject objeto = null;
+                polylinePaths = new ArrayList<>();
                 try{
                     objeto = new JSONObject(response);
                     pontos = objeto.getJSONArray("Pontos");
@@ -87,6 +97,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 //.title(Double.valueOf(lat_i).toString() + "," + Double.valueOf(long_i).toString())
                                 //.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE))
                         );
+
+                        // teste array
+                        points.add(new LatLng(Double.parseDouble(lat_i) , Double.parseDouble(long_i)));
+
+                        PolylineOptions polylineOptions = new PolylineOptions().
+                                geodesic(true).
+                                color(Color.BLUE).
+                                width(10);
+
+                        for (int j = 0; j < points.size(); j++)
+                            polylineOptions.add(points.get(j));
+                        Log.d("JSONResult" , "Desenhando");
+                        polylinePaths.add(mMap.addPolyline(polylineOptions));
 
                         // TODO centralizar o mapa com os Points
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f));
