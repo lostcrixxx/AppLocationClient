@@ -2,6 +2,8 @@ package br.com.tisoftware.tilocationclient;
 
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.location.Address;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.support.v4.app.ActivityCompat;
@@ -37,12 +39,16 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
+import static java.lang.Double.parseDouble;
+
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
     public static final String URL="http://tilocationmobile.atspace.cc/location.php";
     private JSONArray pontos;
     public List<LatLng> points = new ArrayList<>();
+
 
     private List<Polyline> polylinePaths = new ArrayList<>();
 
@@ -51,17 +57,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
-
-
-        // Exibir mapa na tela
+        // Exibir o mapa
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+
     }
+
+
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
+
         mMap = googleMap;
         // Tipo de mapa
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
@@ -78,7 +86,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         //mMap.setMyLocationEnabled(true);
 
         RequestQueue requestQueue= Volley.newRequestQueue(getApplicationContext());
-        StringRequest stringRequest=new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
+        StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
                 Log.d("JSONResult" , response.toString());
@@ -93,23 +101,61 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         String long_i = jsonObject1.getString("longitude");
 
                         mMap.addMarker(new MarkerOptions()
-                                        .position(new LatLng(Double.parseDouble(lat_i) , Double.parseDouble(long_i)))
+                                        .position(new LatLng(parseDouble(lat_i) , parseDouble(long_i)))
                                 //.title(Double.valueOf(lat_i).toString() + "," + Double.valueOf(long_i).toString())
                                 //.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE))
                         );
 
-                        // teste array
-                        points.add(new LatLng(Double.parseDouble(lat_i) , Double.parseDouble(long_i)));
+
+                        // Novo Array para desenhar a Polyline
+                        points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
+
+                        /*
+                        String rota ="";
+                        rota = lat_i + ", " + long_i;
+                        Log.d("JSONResult" , "rota " + rota);
+
+                        Geocoder coder = new Geocoder(MapsActivity.this);
+                        List<Address> address;
+                        LatLng p1 = null;
+
+                        try {
+                            address = coder.getFromLocationName(rota, 1);
+                            if (address == null) {
+                                Log.d("JSONResult" , "Adress vazio");
+                            }
+                            Log.d("JSONResult" , "Adress" + address.get(1).toString());
+                            Address location = address.get(1);
+                            location.getLatitude();
+                            location.getLongitude();
+
+                            p1 = new LatLng(location.getLatitude(), location.getLongitude() );
+                            points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
+                            //points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
+                            Log.d("JSONResult" , "ok");
+
+                        } catch (Exception ex) {
+                            Log.d("JSONResult" , "erro");
+                            ex.printStackTrace();
+
+                        }
+
+*/
 
                         PolylineOptions polylineOptions = new PolylineOptions().
                                 geodesic(true).
                                 color(Color.BLUE).
                                 width(10);
 
-                        for (int j = 0; j < points.size(); j++)
+                        for (int j = 0; j < points.size(); j++) {
                             polylineOptions.add(points.get(j));
+                            //TODO teste
+                            Log.d("JSONResult", "pontos " + points.get(j).toString());
+                        }
+
                         Log.d("JSONResult" , "Desenhando");
                         polylinePaths.add(mMap.addPolyline(polylineOptions));
+
 
                         // TODO centralizar o mapa com os Points
                         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f));
@@ -140,6 +186,39 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    private List decodePolyline(String encoded) {
+
+        List poly = new ArrayList();
+        int index = 0, len = encoded.length();
+        int lat = 0, lng = 0;
+
+        while (index < len) {
+            int b, shift = 0, result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lat += dlat;
+
+            shift = 0;
+            result = 0;
+            do {
+                b = encoded.charAt(index++) - 63;
+                result |= (b & 0x1f) << shift;
+                shift += 5;
+            } while (b >= 0x20);
+            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+            lng += dlng;
+
+            LatLng p = new LatLng((((double) lat / 1E5)),
+                    (((double) lng / 1E5)));
+            poly.add(p);
+        }
+
+        return poly;
+    }
 
     @Override
     public void onLocationChanged(Location location) {
