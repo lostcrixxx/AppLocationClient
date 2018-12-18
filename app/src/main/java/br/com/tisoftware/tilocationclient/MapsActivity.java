@@ -6,6 +6,7 @@ import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
+import android.os.AsyncTask;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -36,8 +37,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import static java.lang.Double.parseDouble;
 
@@ -48,6 +57,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String URL="http://tilocationmobile.atspace.cc/location.php";
     private JSONArray pontos;
     public List<LatLng> points = new ArrayList<>();
+    double fromLat, fromLon, toLat, toLon;
 
 
     private List<Polyline> polylinePaths = new ArrayList<>();
@@ -62,16 +72,47 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        carregaMapa();
 
     }
 
-
+    public void carregaMapa() { // este metodo aqui foi explicado no exemplo do post anterior
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    buscarCoordenadasEndereco("Rua GUJ, 12 - Curitiba", "Rua Java, 10 - Curitiba");// esta é a chamada para o metodo que vai traduzir o endereço para coordenadas é //a duvida descrita, é util para trabalhar com endereços que o usuário digitar
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                //       String url = RoadProvider
+         //               .getUrl(fromLat, fromLon, toLat, toLon);
+         //       InputStream is = getConnection(url);
+         //       mRoad = RoadProvider.getRoute(is);
+         //       mHandler.sendEmptyMessage(0);
+            }
+        }.start();
+        //mapView.invalidate();
+    }
+    public void buscarCoordenadasEndereco(String enderecoOrigem, String enderecoDestino) throws IOException {
+        Geocoder geoCoder = new Geocoder(this, Locale.getDefault());// esse Geocoder aqui é quem vai traduzir o endereço de String para coordenadas double
+        List<Address> addresses = null;//este Adress aqui recebe um retorno do metodo geoCoder.getFromLocationName vc manipula este retorno pra pega as coordenadas
+        addresses = geoCoder.getFromLocationName(enderecoOrigem, 1);// o numero um aqui é a quantidade maxima de resultados que vc quer receber
+        fromLat = addresses.get(0).getLatitude();
+        fromLon = addresses.get(0).getLongitude();
+        addresses = geoCoder.getFromLocationName(enderecoDestino, 1);
+        toLat = addresses.get(0).getLatitude();
+        toLon = addresses.get(0).getLongitude();
+    }
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
 
         mMap = googleMap;
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL); // Tipo de mapa
+
+        // TODO centralizar o mapa com os Points
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f)); // Centralizar mapa
 
         // TODO Solicitar permissão para local
         // Verifica as permissões
@@ -92,6 +133,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Log.d("JSONResult" , response.toString());
                 JSONObject objeto = null;
                 polylinePaths = new ArrayList<>();
+
                 try{
                     objeto = new JSONObject(response);
                     pontos = objeto.getJSONArray("Pontos");
@@ -111,25 +153,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         // Novo Array para desenhar a Polyline
                         points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
 
+
                     }
 
                     // Directions
                     if (points.size() >= 2) {
-                        Log.i("JSONResult","entrou points");
-                        LatLng origin = (LatLng) points.get(0);
-                        LatLng dest = (LatLng) points.get(1);
-
-                        Log.i("JSONResult","origin" + origin);
-                        Log.i("JSONResult","dest" + dest);
+                        LatLng origin = (LatLng) points.get(0); // Pirmeira posição
+                        LatLng dest = (LatLng) points.get(6); // TODO Pegar a última posição (points.size-1)
 
                         // Getting URL to the Google Directions API
-                        getDirectionsUrl(origin, dest);
+                        String url = getDirectionsUrl(origin, dest);
 
-                        //DownloadTask downloadTask = new DownloadTask();
+                        DownloadTask downloadTask = new DownloadTask();
 
                         // Start downloading json data from Google Directions API
-                        //downloadTask.execute(url);
+                        downloadTask.execute(url);
                     }
+
+
+
 
                     /*
                     // Configurações da PolyLine
@@ -149,8 +191,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     polylinePaths.add(mMap.addPolyline(polylineOptions));
 */
 
-                    // TODO centralizar o mapa com os Points
-                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f)); // Centralizar mapa
 
                 }catch (NullPointerException e){
                     e.printStackTrace();
@@ -177,6 +217,80 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
+    private class DownloadTask extends AsyncTask<String, Void, String> {
+
+        @Override
+        protected String doInBackground(String... url) {
+
+            String data = "";
+
+            try {
+                data = downloadUrl(url[0]);
+            } catch (Exception e) {
+                Log.d("Background Task", e.toString());
+            }
+            return data;
+        }
+    }
+
+    /**
+     * A class to parse the Google Places in JSON format
+     */
+    private class ParserTask extends AsyncTask<String, Integer, List<List<HashMap<String, String>>>> {
+
+        // Parsing the data in non-ui thread
+        @Override
+        protected List<List<HashMap<String, String>>> doInBackground(String... jsonData) {
+
+            JSONObject jObject;
+            List<List<HashMap<String, String>>> routes = null;
+
+            try {
+                jObject = new JSONObject(jsonData[0]);
+                DirectionsJSONParser parser = new DirectionsJSONParser();
+
+                routes = parser.parse(jObject);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return routes;
+        }
+
+        @Override
+        protected void onPostExecute(List<List<HashMap<String, String>>> result) {
+            ArrayList points = null;
+            PolylineOptions lineOptions = null;
+            MarkerOptions markerOptions = new MarkerOptions();
+
+            for (int i = 0; i < result.size(); i++) {
+                points = new ArrayList();
+                lineOptions = new PolylineOptions();
+
+                List<HashMap<String, String>> path = result.get(i);
+
+                for (int j = 0; j < path.size(); j++) {
+                    HashMap<String, String> point = path.get(j);
+
+                    double lat = Double.parseDouble(point.get("lat"));
+                    double lng = Double.parseDouble(point.get("lng"));
+                    LatLng position = new LatLng(lat, lng);
+
+                    points.add(position);
+                }
+
+                Log.i("JSONResult","rota");
+                lineOptions.addAll(points);
+                lineOptions.width(12);
+                lineOptions.color(Color.RED);
+                lineOptions.geodesic(true);
+
+            }
+
+// Drawing polyline in the Google Map for the i-th route
+            mMap.addPolyline(lineOptions);
+        }
+    }
+
     private String getDirectionsUrl(LatLng origin, LatLng dest) {
 
         Log.i("JSONResult","entrou directions");
@@ -188,19 +302,58 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
 
         // Sensor enabled
-        String sensor = "sensor=false";
-        String mode = "mode=driving";
+        //String sensor = "sensor=false";
+        //String mode = "mode=driving";
         // Building the parameters to the web service
-        String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + mode;
+        //String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + mode;
+        String parameters = str_origin + "&" + str_dest;
 
         // Output format
         String output = "json";
 
         // Building the url to the web service
-        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
+        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters + "&key=AIzaSyDH0elODdv85HtYSH6Xai2Npc9qHCWIEuQ";
 
 
         return url;
+    }
+
+    /**
+     * A method to download json data from url
+     */
+    private String downloadUrl(String strUrl) throws IOException {
+        String data = "";
+        InputStream iStream = null;
+        HttpURLConnection urlConnection = null;
+        try {
+            java.net.URL url = new URL(strUrl);
+
+            urlConnection = (HttpURLConnection) url.openConnection();
+
+            urlConnection.connect();
+
+            iStream = urlConnection.getInputStream();
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(iStream));
+
+            StringBuffer sb = new StringBuffer();
+
+            String line = "";
+            while ((line = br.readLine()) != null) {
+                sb.append(line);
+            }
+
+            data = sb.toString();
+
+            br.close();
+
+        } catch (Exception e) {
+            Log.d("Exception", e.toString());
+        } finally {
+            iStream.close();
+            urlConnection.disconnect();
+        }
+        return data;
     }
 
     @Override
