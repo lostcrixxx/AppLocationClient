@@ -71,8 +71,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public void onMapReady(GoogleMap googleMap) {
 
         mMap = googleMap;
-        // Tipo de mapa
-        googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL); // Tipo de mapa
 
         // TODO Solicitar permissão para local
         // Verifica as permissões
@@ -84,6 +83,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         // Localização do próprio celular
         //mMap.setMyLocationEnabled(true);
+
 
         RequestQueue requestQueue= Volley.newRequestQueue(getApplicationContext());
         StringRequest stringRequest = new StringRequest(Request.Method.GET, URL, new Response.Listener<String>() {
@@ -101,65 +101,56 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         String long_i = jsonObject1.getString("longitude");
 
                         mMap.addMarker(new MarkerOptions()
-                                        .position(new LatLng(parseDouble(lat_i) , parseDouble(long_i)))
-                                //.title(Double.valueOf(lat_i).toString() + "," + Double.valueOf(long_i).toString())
-                                //.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE))
+                                        .position(new LatLng(parseDouble(lat_i) , parseDouble(long_i))) // Coordenada
+                                //.title(Double.valueOf(lat_i).toString() + "," + Double.valueOf(long_i).toString()) // Titulo
+                                //.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE)) // Imagem do icone
                         );
+
 
 
                         // Novo Array para desenhar a Polyline
                         points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
 
-                        /*
-                        String rota ="";
-                        rota = lat_i + ", " + long_i;
-                        Log.d("JSONResult" , "rota " + rota);
+                    }
 
-                        Geocoder coder = new Geocoder(MapsActivity.this);
-                        List<Address> address;
-                        LatLng p1 = null;
+                    // Directions
+                    if (points.size() >= 2) {
+                        Log.i("JSONResult","entrou points");
+                        LatLng origin = (LatLng) points.get(0);
+                        LatLng dest = (LatLng) points.get(1);
 
-                        try {
-                            address = coder.getFromLocationName(rota, 1);
-                            if (address == null) {
-                                Log.d("JSONResult" , "Adress vazio");
-                            }
-                            Log.d("JSONResult" , "Adress" + address.get(1).toString());
-                            Address location = address.get(1);
-                            location.getLatitude();
-                            location.getLongitude();
+                        Log.i("JSONResult","origin" + origin);
+                        Log.i("JSONResult","dest" + dest);
 
-                            p1 = new LatLng(location.getLatitude(), location.getLongitude() );
-                            points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
-                            //points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
-                            Log.d("JSONResult" , "ok");
+                        // Getting URL to the Google Directions API
+                        getDirectionsUrl(origin, dest);
 
-                        } catch (Exception ex) {
-                            Log.d("JSONResult" , "erro");
-                            ex.printStackTrace();
+                        //DownloadTask downloadTask = new DownloadTask();
 
-                        }
+                        // Start downloading json data from Google Directions API
+                        //downloadTask.execute(url);
+                    }
 
+                    /*
+                    // Configurações da PolyLine
+                    PolylineOptions polylineOptions = new PolylineOptions().
+                            geodesic(true).
+                            color(Color.BLUE). // Cor
+                            width(10); // Espessura
+
+                    // Adicionando os pontos de ligações
+                    for (int j = 0; j < points.size(); j++) {
+                        polylineOptions.add(points.get(j));
+                        //TODO teste
+                        Log.d("JSONResult", "pontos " + points.get(j).toString());
+                    }
+
+                    Log.d("JSONResult" , "Desenhando");
+                    polylinePaths.add(mMap.addPolyline(polylineOptions));
 */
 
-                        PolylineOptions polylineOptions = new PolylineOptions().
-                                geodesic(true).
-                                color(Color.BLUE).
-                                width(10);
-
-                        for (int j = 0; j < points.size(); j++) {
-                            polylineOptions.add(points.get(j));
-                            //TODO teste
-                            Log.d("JSONResult", "pontos " + points.get(j).toString());
-                        }
-
-                        Log.d("JSONResult" , "Desenhando");
-                        polylinePaths.add(mMap.addPolyline(polylineOptions));
-
-
-                        // TODO centralizar o mapa com os Points
-                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f));
-                    }
+                    // TODO centralizar o mapa com os Points
+                    mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f)); // Centralizar mapa
 
                 }catch (NullPointerException e){
                     e.printStackTrace();
@@ -186,38 +177,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private List decodePolyline(String encoded) {
+    private String getDirectionsUrl(LatLng origin, LatLng dest) {
 
-        List poly = new ArrayList();
-        int index = 0, len = encoded.length();
-        int lat = 0, lng = 0;
+        Log.i("JSONResult","entrou directions");
 
-        while (index < len) {
-            int b, shift = 0, result = 0;
-            do {
-                b = encoded.charAt(index++) - 63;
-                result |= (b & 0x1f) << shift;
-                shift += 5;
-            } while (b >= 0x20);
-            int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-            lat += dlat;
+        // Origin of route
+        String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
 
-            shift = 0;
-            result = 0;
-            do {
-                b = encoded.charAt(index++) - 63;
-                result |= (b & 0x1f) << shift;
-                shift += 5;
-            } while (b >= 0x20);
-            int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-            lng += dlng;
+        // Destination of route
+        String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
 
-            LatLng p = new LatLng((((double) lat / 1E5)),
-                    (((double) lng / 1E5)));
-            poly.add(p);
-        }
+        // Sensor enabled
+        String sensor = "sensor=false";
+        String mode = "mode=driving";
+        // Building the parameters to the web service
+        String parameters = str_origin + "&" + str_dest + "&" + sensor + "&" + mode;
 
-        return poly;
+        // Output format
+        String output = "json";
+
+        // Building the url to the web service
+        String url = "https://maps.googleapis.com/maps/api/directions/" + output + "?" + parameters;
+
+
+        return url;
     }
 
     @Override
