@@ -60,11 +60,11 @@ import static java.lang.Double.parseDouble;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, TaskLoadedCallback, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
-    public static final String URL="http://tilocationmobile.atspace.cc/location.php";
-    private JSONArray pontos;
-    public List<LatLng> points = new ArrayList<>();
+    public static final String URL="http://tilocationmobile.atspace.cc/location.php"; // JSON
+    private JSONArray pontos; // Dados do banco
+    public List<LatLng> points = new ArrayList<>(); // Coordenadas
 
-    private MarkerOptions place1, place2;
+    // Polyline Directions
     private Polyline currentPolyline;
 
     private List<Polyline> polylinePaths = new ArrayList<>();
@@ -73,11 +73,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-
-        place1 = new MarkerOptions().position(new LatLng(-23.40888125, -46.75347317)).title("Location 1");
-        place2 = new MarkerOptions().position(new LatLng(-23.5240628, -46.71069063)).title("Location 2");
-
-        new FetchURL(MapsActivity.this).execute(getUrl(place1.getPosition(), place2.getPosition(), "driving"), "driving");
 
         // Exibir o mapa
         MapFragment mapFragment = (MapFragment) getFragmentManager()
@@ -92,9 +87,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         mMap = googleMap;
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL); // Tipo de mapa
-
-        mMap.addMarker(place1);
-        mMap.addMarker(place2);
 
         // TODO centralizar o mapa com os Points
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f)); // Centralizar mapa
@@ -133,34 +125,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                                 //.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ROSE)) // Imagem do icone
                         );
 
-
-
                         // Novo Array para desenhar a Polyline
                         points.add(new LatLng(parseDouble(lat_i), parseDouble(long_i)));
 
-
                     }
 
-                    /*
-                    // Directions
+
+                    // Directions - Pega primeira posição e a última posição
                     if (points.size() >= 2) {
                         LatLng origin = (LatLng) points.get(0); // Pirmeira posição
-                        LatLng dest = (LatLng) points.get(6); // TODO Pegar a última posição (points.size-1)
-
-                        // Getting URL to the Google Directions API
-                        String url = getDirectionsUrl(origin, dest);
-
-                        DownloadTask downloadTask = new DownloadTask();
-
-                        // Start downloading json data from Google Directions API
-                        downloadTask.execute(url);
+                        LatLng dest = (LatLng) points.get(points.size()-1); // TODO Pegar a última posição
+                        new FetchURL(MapsActivity.this).execute(getUrl(origin, dest, "driving"), "driving");
                     }
 
-*/
 
 
-
-                    // Configurações da PolyLine
+/*
+                    // Configurações da PolyLine (linha reta entre pontos)
                     PolylineOptions polylineOptions = new PolylineOptions().
                             geodesic(true).
                             color(Color.BLUE). // Cor
@@ -175,7 +156,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
                     Log.d("JSONResult" , "Desenhando");
                     polylinePaths.add(mMap.addPolyline(polylineOptions));
-
+*/
 
 
                 }catch (NullPointerException e){
@@ -202,6 +183,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         requestQueue.add(stringRequest);
 
     }
+
 
     private String getUrl(LatLng origin, LatLng dest, String directionMode) {
         // Origin of route
