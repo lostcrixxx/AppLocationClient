@@ -149,14 +149,15 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         new FetchURL(MapsActivity.this).execute(getUrl(origin, dest,"walking"), "walking");
                         // driving(Carro), walking(Caminhando)
 
-                        // TODO centralizar o mapa com os Points
-                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest, 15.0f)); // Centralizar mapa
+                        // TODO centralizar o mapa com todos os Points na tela
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest, 15.0f)); // Centralizar mapa com a última posição
 
+                        // Circulo na última posição
                         mMap.addCircle(
                                 new CircleOptions()
                                         .center(dest) // Última posição capturada
                                 .radius(400.0)
-                                .strokeWidth(3f)
+                                .strokeWidth(3f) // largura
                                 .strokeColor(Color.RED)
                                 .fillColor(Color.argb(70, 150,50, 50))
 
