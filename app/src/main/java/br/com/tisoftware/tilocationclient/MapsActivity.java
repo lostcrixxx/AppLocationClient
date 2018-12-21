@@ -34,6 +34,7 @@ import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
@@ -99,8 +100,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap = googleMap;
         googleMap.setMapType(GoogleMap.MAP_TYPE_NORMAL); // Tipo de mapa
 
-        // TODO centralizar o mapa com os Points
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(-23.40888125,-46.75347317), 10.0f)); // Centralizar mapa
 
         // TODO Solicitar permissão para local
         // Verifica as permissões
@@ -149,6 +148,23 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         LatLng dest = (LatLng) points.get(points.size()-1); // TODO Pegar a última posição
                         new FetchURL(MapsActivity.this).execute(getUrl(origin, dest,"walking"), "walking");
                         // driving(Carro), walking(Caminhando)
+
+                        // TODO centralizar o mapa com os Points
+                        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(dest, 15.0f)); // Centralizar mapa
+
+                        mMap.addCircle(
+                                new CircleOptions()
+                                        .center(dest) // Última posição capturada
+                                .radius(400.0)
+                                .strokeWidth(3f)
+                                .strokeColor(Color.RED)
+                                .fillColor(Color.argb(70, 150,50, 50))
+
+
+
+                        );
+
+
                     }
 
 
