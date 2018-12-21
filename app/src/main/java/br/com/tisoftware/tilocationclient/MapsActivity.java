@@ -1,5 +1,6 @@
 package br.com.tisoftware.tilocationclient;
 
+import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.location.Address;
@@ -7,9 +8,12 @@ import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationListener;
 import android.os.AsyncTask;
+import android.os.Build;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -60,6 +64,8 @@ import static java.lang.Double.parseDouble;
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, LocationListener, TaskLoadedCallback, GoogleMap.OnMarkerClickListener {
 
     private GoogleMap mMap;
+
+    boolean status;
     public static final String URL="http://tilocationmobile.atspace.cc/location.php"; // JSON
     private JSONArray pontos; // Dados do banco
     public List<LatLng> points = new ArrayList<>(); // Coordenadas
@@ -74,12 +80,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 
+            runtime_permissions();
+
+
         // Exibir o mapa
         MapFragment mapFragment = (MapFragment) getFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
     }
+
+
 
 
     @Override
@@ -96,6 +107,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED)
         {
+
             return;
         }
 
@@ -131,11 +143,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     }
 
 
-                    // Directions - Pega primeira posição e a última posição
+                    // Directions - Pega primeira e a última posição
                     if (points.size() >= 2) {
                         LatLng origin = (LatLng) points.get(0); // Pirmeira posição
                         LatLng dest = (LatLng) points.get(points.size()-1); // TODO Pegar a última posição
-                        new FetchURL(MapsActivity.this).execute(getUrl(origin, dest, "driving"), "driving");
+                        new FetchURL(MapsActivity.this).execute(getUrl(origin, dest,"walking"), "walking");
+                        // driving(Carro), walking(Caminhando)
                     }
 
 
@@ -190,10 +203,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         String str_origin = "origin=" + origin.latitude + "," + origin.longitude;
         // Destination of route
         String str_dest = "destination=" + dest.latitude + "," + dest.longitude;
+
+        // Waypoints
+        String waypoints = "";
+        for(int i=2;i<points.size();i++){
+            LatLng point  = (LatLng) points.get(i);
+            if(i==2)
+                waypoints = "waypoints=";
+            waypoints += point.latitude + "," + point.longitude + "|";
+        }
+
         // Mode
         String mode = "mode=" + directionMode;
         // Building the parameters to the web service
-        String parameters = str_origin + "&" + str_dest + "&" + mode;
+        String parameters = str_origin + "&" + str_dest + "&" + waypoints + "&" + mode;
         // Output format
         String output = "json";
         // Building the url to the web service
@@ -208,6 +231,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         currentPolyline = mMap.addPolyline((PolylineOptions) values[0]);
     }
 
+    private boolean runtime_permissions() {
+        if(Build.VERSION.SDK_INT >= 23 && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED){
+
+            requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},100);
+
+            return true;
+        }
+        return false;
+    }
+
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if(requestCode == 100){
+            if( grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED){
+                status = true;
+            }else {
+                runtime_permissions();
+            }
+        }
+    }
 
     @Override
     public void onLocationChanged(Location location) {
